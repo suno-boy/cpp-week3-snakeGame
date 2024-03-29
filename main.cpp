@@ -127,8 +127,6 @@ void Logic() {
 		prevX = prev2X;
 		prevY = prev2Y;
 	}
-	//머리
-  handleInput();
 
   //벽을 만나면 게임 종료
 	if (x > width || x < 0 || y > height || y < 0)
