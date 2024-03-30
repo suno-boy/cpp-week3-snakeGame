@@ -1,3 +1,11 @@
+/*
+1) 뱀의 방향 전환 시 몸통이 있는 방향으로 방향을 조절할 수 없다
+2) 뱀이 맵을 전부 꽉 채우면 게임에서 승리한다.
+3) 점수를 맵 바로 아래, 정확히 중앙에 배치하여 보여준다. 점수의 자리수가 바뀔때마다 중앙 정렬되는 위치도 바뀌어야 하는 것에 주의한다
+4) ESC를 누를 시 게임을 즉시 종료한다.
+5) 게임 오버 시 게임을 멈추고 적절한 텍스트를 정확히 맵 정중앙에 출력한다. 이후 엔터를 누를 시 게임을 재시작 한다.
+*/
+
 #include "console.h"
 #include <string>
 #include <iostream>
@@ -5,7 +13,14 @@
 #include <ctime>
 
 #define BOARD_SIZE 20
-#define MOVE_DELAY 60
+#define FIELD_SIZE (BOARD_SIZE - 2) * (BOARD_SIZE - 2)
+
+#define MOVE_DELAY 10
+
+#define LOSE_TEXT "YOU LOSE"
+#define WIN_TEXT "YOU WIN"
+#define TRY_TEXT "Try again? (Enter)"
+
 #define WALL_VERTICAL_STRING "┃"
 #define WALL_HORIZONTAL_STRING "━"
 #define WALL_RIGHT_TOP_STRING "┓"
@@ -16,6 +31,9 @@
 #define SNAKE_BODY_STRING "■"
 #define APPLE_STRING "●"
 
+
+
+
 using namespace std;
 bool gameOver;
 const int width = BOARD_SIZE;
@@ -24,6 +42,9 @@ int x, y, fruitX, fruitY, score;
 int start;
 int tailX[100], tailY[100];
 int nTail;
+bool board[BOARD_SIZE-2][BOARD_SIZE-2]; // 뱀의 위치를 나타내는 2차원 배열
+int direction; //뱀의 이동 방향 (0: 오른쪽, 1: 위쪽, 2: 왼쪽, 3: 아래쪽)
+
 void drawMap();
 void Setup();
 void Draw();
@@ -55,15 +76,29 @@ void Setup() {
 	gameOver = false;
 	x = width / 2; // 뱀의 시작 위치
 	y = height / 2;
-	fruitX = (rand()%(width-2))+1;
-	fruitY = (rand()%(height-2))+1;
 	score = 0;
 	nTail = 0;
-	for(int i=0;i<100;i++)
+	direction = 0;
+	for(int i=0;i<BOARD_SIZE;i++) 
 	{
-		tailX[i] = -1;
-		tailY[i] = -1;
-	}
+        for(int j=0;j<BOARD_SIZE;j++) 
+				{
+            board[i][j] = false; // 보드 초기화
+        }
+  }
+	board[y][x] = true;
+	    // 사과 배치
+  while (true) 
+	{
+    int appleX = rand() % (width - 2) + 1; // 사과의 x 좌표
+    int appleY = rand() % (height - 2) + 1; // 사과의 y 좌표
+    if (!board[appleY][appleX]) 
+		{ // 뱀이 없는 위치에 사과를 배치
+        fruitX = appleX;
+        fruitY = appleY;
+        break;
+    }
+  }	
 }
 
 void Draw() {
@@ -73,7 +108,10 @@ void Draw() {
 		for (int j = 1; j < width-1; j++) 
 		{
 			if (i == y && j == x)
+			{
 				console::draw(j,i,SNAKE_STRING); // 뱀의 머리
+				board[j][i] = true;
+			}
 			else if (i == fruitY && j == fruitX)
 				console::draw(j,i,APPLE_STRING); // 사과
 			else 
@@ -83,6 +121,7 @@ void Draw() {
 					if (tailX[k] == j && tailY[k] == i)
 					{//tailX[k], tailY[k]의 인덱스에는 뱀의 몸통 좌표가 차례대로 대입되어 있어야함!
 						console::draw(j,i,SNAKE_BODY_STRING); // 뱀의 몸통
+						board[j][i] = true;
 					}
 				}
 			}
@@ -101,16 +140,16 @@ void handleInput() {
 
 	
   if (console::key(console::K_LEFT)) {
-    x--;
+		direction = 2;
   }
   if (console::key(console::K_RIGHT)) {
-    x++;
+		direction = 0;
   }
   if (console::key(console::K_UP)) {
-    y--;
+    direction = 1;
   }
   if (console::key(console::K_DOWN)) {
-    y++;
+    direction = 3;
   }
   if (console::key(console::K_ESC)) {
     exit(0);
@@ -128,8 +167,17 @@ void Logic() {
 	if (x == fruitX && y == fruitY) {
     srand(time(nullptr));
 		score += 10;
-		fruitX = (rand()%(width-2))+1;
-		fruitY = (rand()%(height-2))+1;
+		while (true) 
+		{
+			int appleX = rand() % (width - 2) + 1; // 사과의 x 좌표
+			int appleY = rand() % (height - 2) + 1; // 사과의 y 좌표
+			if (!board[appleY][appleX]) 
+			{ // 뱀이 없는 위치에 사과를 배치
+					fruitX = appleX;
+					fruitY = appleY;
+					break;
+			}
+		}
 		nTail++;
 	}
 	//머리자리에 몸통 넣어주는 로직
@@ -147,6 +195,25 @@ void Logic() {
 		prevY = prev2Y;
 	}
 
+
+	if(direction==0)
+	{
+		x++;
+	}
+	else if(direction==1)
+	{
+		y--;
+	}
+	else if(direction==2)
+	{
+		x--;
+	}
+	else if(direction==3)
+	{
+		y++;
+	}
+
+
   //벽을 만나면 게임 종료
 	if (x >= width-1 || x <= 0 || y >= height-1 || y <= 0)
 		gameOver = true;
@@ -163,17 +230,25 @@ void Logic() {
 
 
 void game() {
-
+	int frame = -1;
   console::init();// 콘솔 라이브러리를 초기화한다.
-  
 	Setup();
+
   while (!gameOver) {
+		frame++;
+		handleInput();
+
+		if (0 < frame && frame < MOVE_DELAY) {
+      console::wait();
+      continue;
+    }
+
     console::clear();
     drawMap();
     Draw();
-		handleInput();
     Logic();
     console::wait();
+		frame = 0;
   }
 }
 
