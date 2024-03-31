@@ -1,9 +1,10 @@
 /*
-1) 뱀의 방향 전환 시 몸통이 있는 방향으로 방향을 조절할 수 없다
-2) 뱀이 맵을 전부 꽉 채우면 게임에서 승리한다.
-3) 점수를 맵 바로 아래, 정확히 중앙에 배치하여 보여준다. 점수의 자리수가 바뀔때마다 중앙 정렬되는 위치도 바뀌어야 하는 것에 주의한다
-4) ESC를 누를 시 게임을 즉시 종료한다.
+1) (해결)뱀의 방향 전환 시 몸통이 있는 방향으로 방향을 조절할 수 없다
+2) (해결)뱀이 맵을 전부 꽉 채우면 게임에서 승리한다.
+3) (해결)점수를 맵 바로 아래, 정확히 중앙에 배치하여 보여준다. 점수의 자리수가 바뀔때마다 중앙 정렬되는 위치도 바뀌어야 하는 것에 주의한다
+4) (해결)ESC를 누를 시 게임을 즉시 종료한다.
 5) 게임 오버 시 게임을 멈추고 적절한 텍스트를 정확히 맵 정중앙에 출력한다. 이후 엔터를 누를 시 게임을 재시작 한다.
+6) (해결)시작하자마자 왼쪽으로 방향전환 가능하게하기
 */
 
 #include "console.h"
@@ -13,7 +14,6 @@
 #include <ctime>
 
 #define BOARD_SIZE 20
-#define FIELD_SIZE (BOARD_SIZE - 2) * (BOARD_SIZE - 2)
 
 #define MOVE_DELAY 10
 
@@ -119,7 +119,7 @@ void Draw() {
 				for (int k = 0; k < nTail; k++) 
 				{
 					if (tailX[k] == j && tailY[k] == i)
-					{//tailX[k], tailY[k]의 인덱스에는 뱀의 몸통 좌표가 차례대로 대입되어 있어야함!
+					{
 						console::draw(j,i,SNAKE_BODY_STRING); // 뱀의 몸통
 						board[j][i] = true;
 					}
@@ -128,41 +128,61 @@ void Draw() {
 		}
 	}
 
-	console::draw(5,20,"Score : ");
-	std::string score_str = std::to_string(score);
-	console::draw(13,20,score_str);
+	std::string score_text = "Score : " + std::to_string(score);
+	console::draw((BOARD_SIZE - score_text.length()) / 2, BOARD_SIZE, score_text);
 	
 }
 
 
 
-void handleInput() { 
-
-	
-  if (console::key(console::K_LEFT)) {
+void handleInput() {
+	if(console::key(console::K_LEFT) && nTail==0) {
+		direction = 2;
+	} 
+	if(console::key(console::K_RIGHT) && nTail==0) {
+		direction = 0;
+	} 
+	if(console::key(console::K_DOWN) && nTail==0) {
+		direction = 3;
+	} 
+	if(console::key(console::K_UP) && nTail==0) {
+		direction = 1;
+	} 
+  if (console::key(console::K_LEFT) && direction!=2 && direction!=0) {
 		direction = 2;
   }
-  if (console::key(console::K_RIGHT)) {
+  if (console::key(console::K_RIGHT) && direction!=0 && direction!=2) {
 		direction = 0;
   }
-  if (console::key(console::K_UP)) {
+  if (console::key(console::K_UP) && direction!=1 && direction!=3) {
     direction = 1;
   }
-  if (console::key(console::K_DOWN)) {
+  if (console::key(console::K_DOWN) && direction!=3 && direction!=1) {
     direction = 3;
   }
   if (console::key(console::K_ESC)) {
     exit(0);
-  }  
-  if (console::key(console::K_ENTER)) {
-    game();
-  }   
+  }    
 }
 
 
 
 
 void Logic() {
+	// 승리했을 때 아래 작동
+	int trueCount = 0;
+	for(int i=0;i<BOARD_SIZE-2;i++) {
+		for(int j=0;j<BOARD_SIZE-2;j++) {
+			if(board[j][i]==true) trueCount++;
+		}
+	}
+	if(trueCount == (BOARD_SIZE-2)*(BOARD_SIZE-2)) {
+		std::string WIN_str = WIN_TEXT;
+		console::draw((BOARD_SIZE - WIN_str.length()) / 2, BOARD_SIZE / 2, WIN_str);
+		console::wait();
+	}
+
+
   //과일을 먹으면 점수를 올리고, 꼬리가 길어지며, 과일을 다시 배치한다.
 	if (x == fruitX && y == fruitY) {
     srand(time(nullptr));
@@ -195,7 +215,7 @@ void Logic() {
 		prevY = prev2Y;
 	}
 
-
+	// 사용자로부터 받은 입력을 실제로 적용
 	if(direction==0)
 	{
 		x++;
@@ -230,13 +250,28 @@ void Logic() {
 
 
 void game() {
-	int frame = -1;
-  console::init();// 콘솔 라이브러리를 초기화한다.
 	Setup();
+	int frame = -1;
+  console::init();
 
-  while (!gameOver) {
+  while(true) {
 		frame++;
 		handleInput();
+
+		if(gameOver) {
+			std::string lose_str = LOSE_TEXT;
+			std::string try_str = TRY_TEXT;
+			console::draw((BOARD_SIZE - lose_str.length()) / 2, BOARD_SIZE / 2, LOSE_TEXT);		
+			console::draw((BOARD_SIZE - try_str.length()) / 2, (BOARD_SIZE / 2)+1, TRY_TEXT);
+			console::wait();	
+
+			if (console::key(console::K_ENTER)) {
+				gameOver = false;
+				Setup();
+ 			 } 
+			continue;			 
+			
+		}	
 
 		if (0 < frame && frame < MOVE_DELAY) {
       console::wait();
@@ -250,12 +285,10 @@ void game() {
     console::wait();
 		frame = 0;
   }
+
 }
-
-
 
 int main() {
   game();
-
   return 0;
 }
